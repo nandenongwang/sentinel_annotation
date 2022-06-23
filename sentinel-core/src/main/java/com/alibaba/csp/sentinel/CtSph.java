@@ -15,22 +15,17 @@
  */
 package com.alibaba.csp.sentinel;
 
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
-
-import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.context.NullContext;
-import com.alibaba.csp.sentinel.slotchain.MethodResourceWrapper;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlotChain;
-import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
-import com.alibaba.csp.sentinel.slotchain.SlotChainProvider;
-import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
+import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.slotchain.*;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.Rule;
+
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * {@inheritDoc}
@@ -45,11 +40,11 @@ public class CtSph implements Sph {
     private static final Object[] OBJECTS0 = new Object[0];
 
     /**
+     * 每个资源的slot处理链
      * Same resource({@link ResourceWrapper#equals(Object)}) will share the same
      * {@link ProcessorSlotChain}, no matter in which {@link Context}.
      */
-    private static volatile Map<ResourceWrapper, ProcessorSlotChain> chainMap
-        = new HashMap<ResourceWrapper, ProcessorSlotChain>();
+    private static volatile Map<ResourceWrapper, ProcessorSlotChain> chainMap = new HashMap<>();
 
     private static final Object LOCK = new Object();
 
@@ -110,12 +105,13 @@ public class CtSph implements Sph {
     }
 
     private AsyncEntry asyncEntryInternal(ResourceWrapper resourceWrapper, int count, Object... args)
-        throws BlockException {
+            throws BlockException {
         return asyncEntryWithPriorityInternal(resourceWrapper, count, false, args);
     }
 
-    private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args)
-        throws BlockException {
+    private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args) throws BlockException {
+
+        //region 初始化node、默认取到默认入口node
         Context context = ContextUtil.getContext();
         if (context instanceof NullContext) {
             // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
@@ -127,14 +123,17 @@ public class CtSph implements Sph {
             // Using default context.
             context = InternalContextUtil.internalEnter(Constants.CONTEXT_DEFAULT_NAME);
         }
+        //endregion
 
+        //region 限流开关、默认开启、可以设置Constants.ON=false关闭流控功能放行所有请求
         // Global switch is close, no rule checking will do.
         if (!Constants.ON) {
             return new CtEntry(resourceWrapper, null, context);
         }
+        //endregion
 
+        //region 通过spi加载所有slot、每个资源都会缓存自己的slot chain、如未配置slot则放行请求
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
-
         /*
          * Means amount of resources (slot chain) exceeds {@link Constants.MAX_SLOT_CHAIN_SIZE},
          * so no rule checking will be done.
@@ -142,7 +141,9 @@ public class CtSph implements Sph {
         if (chain == null) {
             return new CtEntry(resourceWrapper, null, context);
         }
+        //endregion
 
+        //region 通过slot chain进行限流、默认使用DefaultProcessorSlotChain
         Entry e = new CtEntry(resourceWrapper, chain, context);
         try {
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
@@ -153,6 +154,7 @@ public class CtSph implements Sph {
             // This should not happen, unless there are errors existing in Sentinel internal.
             RecordLog.info("Sentinel unexpected exception", e1);
         }
+        //endregion
         return e;
     }
 
@@ -204,7 +206,7 @@ public class CtSph implements Sph {
 
                     chain = SlotChainProvider.newSlotChain();
                     Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(
-                        chainMap.size() + 1);
+                            chainMap.size() + 1);
                     newMap.putAll(chainMap);
                     newMap.put(resourceWrapper, chain);
                     chainMap = newMap;
@@ -329,14 +331,14 @@ public class CtSph implements Sph {
 
     @Override
     public Entry entryWithPriority(String name, EntryType type, int count, boolean prioritized, Object... args)
-        throws BlockException {
+            throws BlockException {
         StringResourceWrapper resource = new StringResourceWrapper(name, type);
         return entryWithPriority(resource, count, prioritized, args);
     }
 
     @Override
     public Entry entryWithType(String name, int resourceType, EntryType entryType, int count, Object[] args)
-        throws BlockException {
+            throws BlockException {
         return entryWithType(name, resourceType, entryType, count, false, args);
     }
 

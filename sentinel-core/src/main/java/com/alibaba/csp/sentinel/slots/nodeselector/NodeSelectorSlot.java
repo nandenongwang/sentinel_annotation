@@ -47,7 +47,7 @@ import java.util.Map;
  * }
  * ContextUtil.exit();
  * </pre>
- *
+ * <p>
  * Above code will generate the following invocation structure in memory:
  *
  * <pre>
@@ -94,7 +94,7 @@ import java.util.Map;
  *    }
  *    ContextUtil.exit();
  * </pre>
- *
+ * <p>
  * Above code will generate the following invocation structure in memory:
  *
  * <pre>
@@ -134,7 +134,7 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
 
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
-        throws Throwable {
+            throws Throwable {
         /*
          * It's interesting that we use context name rather resource name as the map key.
          *
@@ -153,6 +153,8 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
          * The answer is all {@link DefaultNode}s with same resource name share one
          * {@link ClusterNode}. See {@link ClusterBuilderSlot} for detail.
          */
+        //上下文名称为入口node名、该map即维护了不同入口下，每个资源的总的统计node
+        //上下文的入口node维护的是所有资源的统计情况
         DefaultNode node = map.get(context.getName());
         if (node == null) {
             synchronized (this) {
@@ -170,6 +172,7 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
             }
         }
 
+        //设置为当前node
         context.setCurNode(node);
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }

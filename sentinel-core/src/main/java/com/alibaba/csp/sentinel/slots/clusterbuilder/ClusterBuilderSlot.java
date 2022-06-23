@@ -15,25 +15,22 @@
  */
 package com.alibaba.csp.sentinel.slots.clusterbuilder;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
-import com.alibaba.csp.sentinel.node.ClusterNode;
-import com.alibaba.csp.sentinel.node.DefaultNode;
-import com.alibaba.csp.sentinel.node.IntervalProperty;
-import com.alibaba.csp.sentinel.node.Node;
-import com.alibaba.csp.sentinel.node.SampleCountProperty;
+import com.alibaba.csp.sentinel.node.*;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlotChain;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
 import com.alibaba.csp.sentinel.spi.Spi;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
+ * 维护相同资源针对不同来源app统计node的聚合集群统计node
  * <p>
  * This slot maintains resource running statistics (response time, qps, thread
  * count, exception), and a list of callers as well which is marked by
@@ -67,16 +64,20 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
      * at the very beginning while concurrent map will hold the lock all the time.
      * </p>
      */
+    //所有资源的聚合统计node
     private static volatile Map<ResourceWrapper, ClusterNode> clusterNodeMap = new HashMap<>();
 
     private static final Object lock = new Object();
 
+    /**
+     * 单个资源对所有不同入口的聚合统计node
+     */
     private volatile ClusterNode clusterNode = null;
 
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args)
-        throws Throwable {
+            throws Throwable {
         if (clusterNode == null) {
             synchronized (lock) {
                 if (clusterNode == null) {

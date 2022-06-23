@@ -15,19 +15,19 @@
  */
 package com.alibaba.csp.sentinel.demo.system;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.system.SystemRule;
 import com.alibaba.csp.sentinel.slots.system.SystemRuleManager;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author jialiang.linjl
@@ -110,6 +110,9 @@ public class SystemGuardDemo {
         timer.start();
     }
 
+    /**
+     * 每秒钟打印总请求、通过请求、阻塞请求数
+     */
     static class TimerTask implements Runnable {
         @Override
         public void run() {
@@ -135,8 +138,8 @@ public class SystemGuardDemo {
                 oldBlock = globalBlock;
 
                 System.out.println(seconds + ", " + TimeUtil.currentTimeMillis() + ", total:"
-                    + oneSecondTotal + ", pass:"
-                    + oneSecondPass + ", block:" + oneSecondBlock);
+                        + oneSecondTotal + ", pass:"
+                        + oneSecondPass + ", block:" + oneSecondBlock);
                 if (seconds-- <= 0) {
                     stop = true;
                 }

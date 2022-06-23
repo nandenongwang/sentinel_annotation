@@ -15,8 +15,6 @@
  */
 package com.alibaba.csp.sentinel;
 
-import java.util.LinkedList;
-
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.context.NullContext;
@@ -25,6 +23,8 @@ import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.util.function.BiConsumer;
+
+import java.util.LinkedList;
 
 /**
  * Linked entry within current context.
@@ -58,6 +58,8 @@ class CtEntry extends Entry {
         if (parent != null) {
             ((CtEntry) parent).child = this;
         }
+
+        //设置上下文对应请求
         context.setCurEntry(this);
     }
 
@@ -76,7 +78,7 @@ class CtEntry extends Entry {
                     handler.accept(ctx, this);
                 } catch (Exception e) {
                     RecordLog.warn("Error occurred when invoking entry exit handler, current entry: "
-                        + resourceWrapper.getName(), e);
+                            + resourceWrapper.getName(), e);
                 }
             }
             exitHandlers = null;
@@ -92,7 +94,7 @@ class CtEntry extends Entry {
 
             if (context.getCurEntry() != this) {
                 String curEntryNameInContext = context.getCurEntry() == null ? null
-                    : context.getCurEntry().getResourceWrapper().getName();
+                        : context.getCurEntry().getResourceWrapper().getName();
                 // Clean previous call stack.
                 CtEntry e = (CtEntry) context.getCurEntry();
                 while (e != null) {
@@ -100,8 +102,8 @@ class CtEntry extends Entry {
                     e = (CtEntry) e.parent;
                 }
                 String errorMessage = String.format("The order of entry exit can't be paired with the order of entry"
-                        + ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext,
-                    resourceWrapper.getName());
+                                + ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext,
+                        resourceWrapper.getName());
                 throw new ErrorEntryFreeException(errorMessage);
             } else {
                 // Go through the onExit hook of all slots.

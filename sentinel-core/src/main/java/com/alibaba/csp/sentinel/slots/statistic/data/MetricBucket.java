@@ -17,6 +17,7 @@ package com.alibaba.csp.sentinel.slots.statistic.data;
 
 import com.alibaba.csp.sentinel.config.SentinelConfig;
 import com.alibaba.csp.sentinel.slots.statistic.MetricEvent;
+
 import java.util.concurrent.atomic.LongAdder;
 
 /**
@@ -27,6 +28,10 @@ import java.util.concurrent.atomic.LongAdder;
  */
 public class MetricBucket {
 
+    /**
+     * 各项统计值的计数器
+     * 下标为MetricEvent中枚举顺序
+     */
     private final LongAdder[] counters;
 
     private volatile long minRt;

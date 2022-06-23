@@ -54,6 +54,9 @@ import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
  * @see ContextUtil
  * @see NodeSelectorSlot
  */
+
+//请求上下文、主要记录请求来自于那个来源(根据入口node判断)
+//每个请求都会获取上下文放在threadlocal中、一般都是默认入口node
 public class Context {
 
     /**
@@ -82,7 +85,7 @@ public class Context {
      * Create a new async context.
      *
      * @param entranceNode entrance node of the context
-     * @param name context name
+     * @param name         context name
      * @return the new created context
      * @since 0.2.0
      */
@@ -191,11 +194,11 @@ public class Context {
     @Override
     public String toString() {
         return "Context{" +
-            "name='" + name + '\'' +
-            ", entranceNode=" + entranceNode +
-            ", curEntry=" + curEntry +
-            ", origin='" + origin + '\'' +
-            ", async=" + async +
-            '}';
+                "name='" + name + '\'' +
+                ", entranceNode=" + entranceNode +
+                ", curEntry=" + curEntry +
+                ", origin='" + origin + '\'' +
+                ", async=" + async +
+                '}';
     }
 }

@@ -15,22 +15,22 @@
  */
 package com.alibaba.csp.sentinel.slots.statistic;
 
-import java.util.Collection;
-
-import com.alibaba.csp.sentinel.node.Node;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlotEntryCallback;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlotExitCallback;
-import com.alibaba.csp.sentinel.slots.block.flow.PriorityWaitException;
-import com.alibaba.csp.sentinel.spi.Spi;
-import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.node.ClusterNode;
 import com.alibaba.csp.sentinel.node.DefaultNode;
+import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
+import com.alibaba.csp.sentinel.slotchain.ProcessorSlotEntryCallback;
+import com.alibaba.csp.sentinel.slotchain.ProcessorSlotExitCallback;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.flow.PriorityWaitException;
+import com.alibaba.csp.sentinel.spi.Spi;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
+import java.util.Collection;
 
 /**
  * <p>
@@ -55,11 +55,16 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
         try {
-            // Do some checking.
+            //region 往下调用进行处理
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
+            //endregion
+
+            //region 通过了流控规则
 
             // Request passed, add thread count and pass count.
+            //增加【请求入口-请求资源】node与【请求资源-所有入口】集群node的执行中线程数
             node.increaseThreadNum();
+            //增加【请求入口-请求资源】node与【请求资源-所有入口】集群node的时间窗口内通过的请求数
             node.addPassRequest(count);
 
             if (context.getCurEntry().getOriginNode() != null) {
@@ -78,6 +83,7 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
                 handler.onPass(context, resourceWrapper, node, count, args);
             }
+            //endregion
         } catch (PriorityWaitException ex) {
             node.increaseThreadNum();
             if (context.getCurEntry().getOriginNode() != null) {

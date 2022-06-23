@@ -15,13 +15,6 @@
  */
 package com.alibaba.csp.sentinel.slots.system;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
@@ -32,7 +25,16 @@ import com.alibaba.csp.sentinel.property.SimplePropertyListener;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
+ * 进行系统负载限流
+ * 实时流控数据通过Constants.ENTRY_NODE获取、统计solt会更新该cluster-node中统计数据
  * <p>
  * Sentinel System Rule makes the inbound traffic and capacity meet. It takes
  * average rt, qps, thread count of incoming requests into account. And it also
@@ -90,7 +92,7 @@ public final class SystemRuleManager {
 
     @SuppressWarnings("PMD.ThreadPoolCreationRule")
     private final static ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1,
-        new NamedThreadFactory("sentinel-system-status-record-task", true));
+            new NamedThreadFactory("sentinel-system-status-record-task", true));
 
     static {
         checkSystemStatus.set(false);
@@ -195,17 +197,17 @@ public final class SystemRuleManager {
             }
 
             RecordLog.info(String.format("[SystemRuleManager] Current system check status: %s, "
-                    + "highestSystemLoad: %e, "
-                    + "highestCpuUsage: %e, "
-                    + "maxRt: %d, "
-                    + "maxThread: %d, "
-                    + "maxQps: %e",
-                checkSystemStatus.get(),
-                highestSystemLoad,
-                highestCpuUsage,
-                maxRt,
-                maxThread,
-                qps));
+                            + "highestSystemLoad: %e, "
+                            + "highestCpuUsage: %e, "
+                            + "maxRt: %d, "
+                            + "maxThread: %d, "
+                            + "maxQps: %e",
+                    checkSystemStatus.get(),
+                    highestSystemLoad,
+                    highestCpuUsage,
+                    maxRt,
+                    maxThread,
+                    qps));
         }
 
         protected void restoreSetting() {
@@ -252,7 +254,7 @@ public final class SystemRuleManager {
         if (rule.getHighestCpuUsage() >= 0) {
             if (rule.getHighestCpuUsage() > 1) {
                 RecordLog.warn(String.format("[SystemRuleManager] Ignoring invalid SystemRule: "
-                    + "highestCpuUsage %.3f > 1", rule.getHighestCpuUsage()));
+                        + "highestCpuUsage %.3f > 1", rule.getHighestCpuUsage()));
             } else {
                 highestCpuUsage = Math.min(highestCpuUsage, rule.getHighestCpuUsage());
                 highestCpuUsageIsSet = true;
@@ -333,7 +335,7 @@ public final class SystemRuleManager {
 
     private static boolean checkBbr(int currentThread) {
         if (currentThread > 1 &&
-            currentThread > Constants.ENTRY_NODE.maxSuccessQps() * Constants.ENTRY_NODE.minRt() / 1000) {
+                currentThread > Constants.ENTRY_NODE.maxSuccessQps() * Constants.ENTRY_NODE.minRt() / 1000) {
             return false;
         }
         return true;

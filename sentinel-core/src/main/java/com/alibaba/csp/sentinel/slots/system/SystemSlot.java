@@ -24,6 +24,8 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.spi.Spi;
 
 /**
+ * 根据系统负载进行流控、主要功能委托SystemRuleManager处理
+ * <p>
  * A {@link ProcessorSlot} that dedicates to {@link SystemRule} checking.
  *
  * @author jialiang.linjl

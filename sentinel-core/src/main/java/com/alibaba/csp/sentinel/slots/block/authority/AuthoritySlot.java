@@ -15,9 +15,6 @@
  */
 package com.alibaba.csp.sentinel.slots.block.authority;
 
-import java.util.Map;
-import java.util.Set;
-
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.node.DefaultNode;
@@ -26,7 +23,11 @@ import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.spi.Spi;
 
+import java.util.Map;
+import java.util.Set;
+
 /**
+ * 根据来源进行黑白名单访问控制
  * A {@link ProcessorSlot} that dedicates to {@link AuthorityRule} checking.
  *
  * @author leyou
@@ -37,7 +38,7 @@ public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count, boolean prioritized, Object... args)
-        throws Throwable {
+            throws Throwable {
         checkBlackWhiteAuthority(resourceWrapper, context);
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }

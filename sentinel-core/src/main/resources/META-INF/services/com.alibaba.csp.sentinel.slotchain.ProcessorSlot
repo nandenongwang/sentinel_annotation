@@ -1,9 +1,25 @@
 # Sentinel default ProcessorSlots
+
+# 维护不同入口下访问资源的统计node、并作为参数node向下传播
 com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot
+
+# 维护当前访问资源与全局的所有资源的聚合统计cluster node
 com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot
+
+# 记录限流日志
 com.alibaba.csp.sentinel.slots.logger.LogSlot
+
+# 更新流控统计
 com.alibaba.csp.sentinel.slots.statistic.StatisticSlot
+
+# 根据黑白名单对来源Origin进行流控
 com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot
+
+# 根据系统规则进行限流
 com.alibaba.csp.sentinel.slots.system.SystemSlot
+
+# 根据流控规则进行限流
 com.alibaba.csp.sentinel.slots.block.flow.FlowSlot
+
+# 根据熔断规则进行熔断
 com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot

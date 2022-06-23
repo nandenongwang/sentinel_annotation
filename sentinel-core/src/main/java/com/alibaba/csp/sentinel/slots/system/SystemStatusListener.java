@@ -15,17 +15,18 @@
  */
 package com.alibaba.csp.sentinel.slots.system;
 
+import com.alibaba.csp.sentinel.Constants;
+import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.util.StringUtil;
+import com.sun.management.OperatingSystemMXBean;
+
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.util.concurrent.TimeUnit;
 
-import com.alibaba.csp.sentinel.Constants;
-import com.alibaba.csp.sentinel.log.RecordLog;
-import com.alibaba.csp.sentinel.util.StringUtil;
-
-import com.sun.management.OperatingSystemMXBean;
-
 /**
+ * 用于从MBean中获取系统负载及CPU使用率 【供system slot限流使用】
+ *
  * @author jialiang.linjl
  */
 public class SystemStatusListener implements Runnable {

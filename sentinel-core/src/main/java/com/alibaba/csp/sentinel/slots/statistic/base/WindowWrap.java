@@ -16,6 +16,8 @@
 package com.alibaba.csp.sentinel.slots.statistic.base;
 
 /**
+ * 表示单个统计窗口
+ * value用于存储窗口内各项统计值
  * Wrapper entity class for a period of time window.
  *
  * @param <T> data type
@@ -91,9 +93,9 @@ public class WindowWrap<T> {
     @Override
     public String toString() {
         return "WindowWrap{" +
-            "windowLengthInMs=" + windowLengthInMs +
-            ", windowStart=" + windowStart +
-            ", value=" + value +
-            '}';
+                "windowLengthInMs=" + windowLengthInMs +
+                ", windowStart=" + windowStart +
+                ", value=" + value +
+                '}';
     }
 }
