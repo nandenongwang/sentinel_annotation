@@ -15,21 +15,34 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow.controller;
 
+import com.alibaba.csp.sentinel.node.Node;
+import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
-
-import com.alibaba.csp.sentinel.util.TimeUtil;
-import com.alibaba.csp.sentinel.node.Node;
-
 /**
+ * 采用漏桶算法
+ * 将时间窗口(默认1秒)分为count段、每段流出一个请求token
+ * (当前时间 - 上次通过时间)/token生成间隔即为当前可用token总数
+ *
  * @author jialiang.linjl
  */
 public class RateLimiterController implements TrafficShapingController {
 
+    /**
+     * 最大等待时长
+     */
     private final int maxQueueingTimeMs;
+
+    /**
+     * 单个窗口最大令牌数
+     */
     private final double count;
 
+    /**
+     * 上次请求通过时间
+     */
     private final AtomicLong latestPassedTime = new AtomicLong(-1);
 
     public RateLimiterController(int timeOut, double count) {
@@ -54,18 +67,22 @@ public class RateLimiterController implements TrafficShapingController {
             return false;
         }
 
+        //当前时间
         long currentTime = TimeUtil.currentTimeMillis();
+
+        //计算请求间隔时间 = 1000ms * (请求申请数/最大令牌数)
         // Calculate the interval between every two requests.
         long costTime = Math.round(1.0 * (acquireCount) / count * 1000);
 
+        //必须等待到下一个间隔时间才能通过请求
         // Expected pass time of this request.
         long expectedTime = costTime + latestPassedTime.get();
-
         if (expectedTime <= currentTime) {
             // Contention may exist here, but it's okay.
             latestPassedTime.set(currentTime);
             return true;
         } else {
+            //等待下一个间隔、知道等待超时失败
             // Calculate the time to wait.
             long waitTime = costTime + latestPassedTime.get() - TimeUtil.currentTimeMillis();
             if (waitTime > maxQueueingTimeMs) {
@@ -83,7 +100,7 @@ public class RateLimiterController implements TrafficShapingController {
                         Thread.sleep(waitTime);
                     }
                     return true;
-                } catch (InterruptedException e) {
+                } catch (InterruptedException ignored) {
                 }
             }
         }

@@ -15,16 +15,16 @@
  */
 package com.alibaba.csp.sentinel.node;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.LongAdder;
-
 import com.alibaba.csp.sentinel.node.metric.MetricNode;
 import com.alibaba.csp.sentinel.slots.statistic.metric.ArrayMetric;
 import com.alibaba.csp.sentinel.slots.statistic.metric.Metric;
 import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.util.function.Predicate;
+
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * <p>The statistic node keep three kinds of real-time statistics metrics:</p>
@@ -94,7 +94,7 @@ public class StatisticNode implements Node {
      * by given {@code sampleCount}.
      */
     private transient volatile Metric rollingCounterInSecond = new ArrayMetric(SampleCountProperty.SAMPLE_COUNT,
-        IntervalProperty.INTERVAL);
+            IntervalProperty.INTERVAL);
 
     /**
      * Holds statistics of the recent 60 seconds. The windowLengthInMs is deliberately set to 1000 milliseconds,
@@ -103,6 +103,7 @@ public class StatisticNode implements Node {
     private transient Metric rollingCounterInMinute = new ArrayMetric(60, 60 * 1000, false);
 
     /**
+     * 总的请求线程数
      * The counter for thread count.
      */
     private LongAdder curThreadNum = new LongAdder();
@@ -143,7 +144,7 @@ public class StatisticNode implements Node {
 
     private boolean isValidMetricNode(MetricNode node) {
         return node.getPassQps() > 0 || node.getBlockQps() > 0 || node.getSuccessQps() > 0
-            || node.getExceptionQps() > 0 || node.getRt() > 0 || node.getOccupiedPassQps() > 0;
+                || node.getExceptionQps() > 0 || node.getRt() > 0 || node.getOccupiedPassQps() > 0;
     }
 
     @Override
@@ -239,7 +240,7 @@ public class StatisticNode implements Node {
 
     @Override
     public int curThreadNum() {
-        return (int)curThreadNum.sum();
+        return (int) curThreadNum.sum();
     }
 
     @Override
@@ -286,14 +287,18 @@ public class StatisticNode implements Node {
 
     @Override
     public long tryOccupyNext(long currentTime, int acquireCount, double threshold) {
+        //region 若已经把下个未来窗口的令牌借完、返回借用等待超时、调用方将进行流控
         double maxCount = threshold * IntervalProperty.INTERVAL / 1000;
         long currentBorrow = rollingCounterInSecond.waiting();
         if (currentBorrow >= maxCount) {
             return OccupyTimeoutProperty.getOccupyTimeout();
         }
+        //endregion
 
-        int windowLength = IntervalProperty.INTERVAL / SampleCountProperty.SAMPLE_COUNT;
-        long earliestTime = currentTime - currentTime % windowLength + windowLength - IntervalProperty.INTERVAL;
+        int windowLength/* 500ms */ = IntervalProperty.INTERVAL / SampleCountProperty.SAMPLE_COUNT;
+
+        //滑动窗口起始时间
+        long earliestTime = (currentTime - currentTime % windowLength + windowLength)/* 下一个500ms刻度 */ - IntervalProperty.INTERVAL;
 
         int idx = 0;
         /*
@@ -301,16 +306,22 @@ public class StatisticNode implements Node {
          * since call rollingCounterInSecond.pass(). So in high concurrency, the following code may
          * lead more tokens be borrowed.
          */
+        //当前窗口内总通过请求数
         long currentPass = rollingCounterInSecond.pass();
         while (earliestTime < currentTime) {
-            long waitInMs = idx * windowLength + windowLength - currentTime % windowLength;
+            long waitInMs = idx * windowLength + (windowLength - currentTime % windowLength)/* 距下一500ms刻度时间 */;
             if (waitInMs >= OccupyTimeoutProperty.getOccupyTimeout()) {
                 break;
             }
+            //滑动窗口内第一个统计单元通过数
             long windowPass = rollingCounterInSecond.getWindowPass(earliestTime);
-            if (currentPass + currentBorrow + acquireCount - windowPass <= maxCount) {
+            //格子1、2、3(未来格子)
+            //（12总通过数)-(1通过数)+(已经被借的+这次需要借的,算在未来第三个格子上)
+            //即第二个格子和第三个未来格子总数不超过窗口限制、则借用成功
+            if (currentPass - windowPass + (currentBorrow + acquireCount) <= maxCount) {
                 return waitInMs;
             }
+            //继续往下借用、直到需要等待的时间超过等待超时
             earliestTime += windowLength;
             currentPass -= windowPass;
             idx++;

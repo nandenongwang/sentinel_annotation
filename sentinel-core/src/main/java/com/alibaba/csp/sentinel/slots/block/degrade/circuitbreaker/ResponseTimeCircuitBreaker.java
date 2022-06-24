@@ -15,9 +15,6 @@
  */
 package com.alibaba.csp.sentinel.slots.block.degrade.circuitbreaker;
 
-import java.util.List;
-import java.util.concurrent.atomic.LongAdder;
-
 import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
@@ -26,6 +23,9 @@ import com.alibaba.csp.sentinel.slots.statistic.base.LeapArray;
 import com.alibaba.csp.sentinel.slots.statistic.base.WindowWrap;
 import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.TimeUtil;
+
+import java.util.List;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * @author Eric Zhao
@@ -63,6 +63,7 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
     @Override
     public void onRequestComplete(Context context) {
+        //region 计算并更新统计情况
         SlowRequestCounter counter = slidingCounter.currentWindow().value();
         Entry entry = context.getCurEntry();
         if (entry == null) {
@@ -77,15 +78,21 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
             counter.slowCount.add(1);
         }
         counter.totalCount.add(1);
+        //endregion
 
+        //region 判断是否打开或关闭熔断器
         handleStateChangeWhenThresholdExceeded(rt);
+        //endregion
     }
 
     private void handleStateChangeWhenThresholdExceeded(long rt) {
+        //region 熔断器已经打开、无需操作
         if (currentState.get() == State.OPEN) {
             return;
         }
-        
+        //endregion
+
+        //region 如果半开状态发起的请求响应时间正常就会关闭该断路器、否则重新打开断路器、等待一个的重试周期后再度进入半开重试
         if (currentState.get() == State.HALF_OPEN) {
             // In detecting request
             // TODO: improve logic for half-open recovery
@@ -96,7 +103,9 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
             }
             return;
         }
+        //endregion
 
+        //region 熔断器关闭时需要判断各类统计情况决定是否打开熔断器
         List<SlowRequestCounter> counters = slidingCounter.values();
         long slowCount = 0;
         long totalCount = 0;
@@ -115,6 +124,7 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
                 Double.compare(maxSlowRequestRatio, SLOW_REQUEST_RATIO_MAX_VALUE) == 0) {
             transformToOpen(currentRatio);
         }
+        //endregion
     }
 
     static class SlowRequestCounter {
@@ -143,9 +153,9 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         @Override
         public String toString() {
             return "SlowRequestCounter{" +
-                "slowCount=" + slowCount +
-                ", totalCount=" + totalCount +
-                '}';
+                    "slowCount=" + slowCount +
+                    ", totalCount=" + totalCount +
+                    '}';
         }
     }
 

@@ -59,30 +59,36 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
             //endregion
 
-            //region 通过了流控规则
+            //region 通过了流控规则、更新统计信息
 
+            //region 更新对应入口来源node与其内部资源cluster node的【线程数、通过数】
             // Request passed, add thread count and pass count.
-            //增加【请求入口-请求资源】node与【请求资源-所有入口】集群node的执行中线程数
             node.increaseThreadNum();
-            //增加【请求入口-请求资源】node与【请求资源-所有入口】集群node的时间窗口内通过的请求数
             node.addPassRequest(count);
+            //endregion
 
+            //region 更新资源cluster中对应入口来源node的【线程数、通过数】
             if (context.getCurEntry().getOriginNode() != null) {
                 // Add count for origin node.
                 context.getCurEntry().getOriginNode().increaseThreadNum();
                 context.getCurEntry().getOriginNode().addPassRequest(count);
             }
+            //endregion
 
+            //region 更新全局系统统计node的【线程数、通过数】
             if (resourceWrapper.getEntryType() == EntryType.IN) {
                 // Add count for global inbound entry node for global statistics.
                 Constants.ENTRY_NODE.increaseThreadNum();
                 Constants.ENTRY_NODE.addPassRequest(count);
             }
+            //endregion
 
+            //region 处理通过流控勾子
             // Handle pass event with registered entry callback handlers.
             for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
                 handler.onPass(context, resourceWrapper, node, count, args);
             }
+            //endregion
             //endregion
         } catch (PriorityWaitException ex) {
             node.increaseThreadNum();

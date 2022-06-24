@@ -130,7 +130,7 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
     /**
      * {@link DefaultNode}s of the same resource in different context.
      */
-    private volatile Map<String, DefaultNode> map = new HashMap<String, DefaultNode>(10);
+    private volatile Map<String/* 入口 */, DefaultNode/* 入口统计node(该chain绑定的资源) */> map = new HashMap<String, DefaultNode>(10);
 
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
@@ -153,7 +153,7 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
          * The answer is all {@link DefaultNode}s with same resource name share one
          * {@link ClusterNode}. See {@link ClusterBuilderSlot} for detail.
          */
-        //上下文名称为入口node名、该map即维护了不同入口下，每个资源的总的统计node
+        //上下文名称为入口node名、该map即维护了不同入口下，每个资源的(因各资源有不同的slot chain)总的统计node
         //上下文的入口node维护的是所有资源的统计情况
         DefaultNode node = map.get(context.getName());
         if (node == null) {

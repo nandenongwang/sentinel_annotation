@@ -48,6 +48,8 @@ public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         fireExit(context, resourceWrapper, count, args);
     }
 
+    //通过规则校验器对所有规则进行限流
+    //主要判断规则limit app字段是否包括请求origin、并根据规则是黑名单或白名单进行控制
     void checkBlackWhiteAuthority(ResourceWrapper resource, Context context) throws AuthorityException {
         Map<String, Set<AuthorityRule>> authorityRules = AuthorityRuleManager.getAuthorityRules();
 

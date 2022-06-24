@@ -129,6 +129,11 @@ public final class FlowRuleUtil {
         return newRuleMap;
     }
 
+    /**
+     * 根据流控规则选择对应控制器
+     * 按qps限流、预热模式、匀速排队模式、预热+匀速排队模式均有对应控制器
+     * 按线程数限流、普通qpd限流使用默认快速失败控制器
+     */
     private static TrafficShapingController generateRater(/*@Valid*/ FlowRule rule) {
         if (rule.getGrade() == RuleConstant.FLOW_GRADE_QPS) {
             switch (rule.getControlBehavior()) {

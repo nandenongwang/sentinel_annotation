@@ -65,7 +65,7 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
      * </p>
      */
     //所有资源的聚合统计node
-    private static volatile Map<ResourceWrapper, ClusterNode> clusterNodeMap = new HashMap<>();
+    private static volatile Map<ResourceWrapper/* 资源id */, ClusterNode/* 该资源所有入口聚合统计node */> clusterNodeMap = new HashMap<>();
 
     private static final Object lock = new Object();
 

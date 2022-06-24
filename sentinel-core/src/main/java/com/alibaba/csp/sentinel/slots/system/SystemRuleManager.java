@@ -241,6 +241,9 @@ public final class SystemRuleManager {
         return highestCpuUsage;
     }
 
+    /**
+     * 重载系统规则设置、默认取多次设置中最小值
+     */
     public static void loadSystemConf(SystemRule rule) {
         boolean checkStatus = false;
         // Check if it's valid.
@@ -290,6 +293,8 @@ public final class SystemRuleManager {
      * @throws BlockException when any system rule's threshold is exceeded.
      */
     public static void checkSystem(ResourceWrapper resourceWrapper, int count) throws BlockException {
+
+        //region 关闭系统规则流控与出口流量不做限制
         if (resourceWrapper == null) {
             return;
         }
@@ -302,7 +307,9 @@ public final class SystemRuleManager {
         if (resourceWrapper.getEntryType() != EntryType.IN) {
             return;
         }
+        //endregion
 
+        //region 根据全局统计node中数据进行流控 【qps、总线程数、平均响应时间】
         // total qps
         double currentQps = Constants.ENTRY_NODE == null ? 0.0 : Constants.ENTRY_NODE.passQps();
         if (currentQps + count > qps) {
@@ -319,7 +326,9 @@ public final class SystemRuleManager {
         if (rt > maxRt) {
             throw new SystemBlockException(resourceWrapper.getName(), "rt");
         }
+        //endregion
 
+        //region 额外检测系统负载与cpu使用率
         // load. BBR algorithm.
         if (highestSystemLoadIsSet && getCurrentSystemAvgLoad() > highestSystemLoad) {
             if (!checkBbr(currentThread)) {
@@ -331,6 +340,7 @@ public final class SystemRuleManager {
         if (highestCpuUsageIsSet && getCurrentCpuUsage() > highestCpuUsage) {
             throw new SystemBlockException(resourceWrapper.getName(), "cpu");
         }
+        //endregion
     }
 
     private static boolean checkBbr(int currentThread) {

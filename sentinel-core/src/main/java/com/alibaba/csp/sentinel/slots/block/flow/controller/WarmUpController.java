@@ -15,11 +15,11 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow.controller;
 
-import java.util.concurrent.atomic.AtomicLong;
-
-import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <p>
@@ -61,12 +61,35 @@ import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
  *
  * @author jialiang.linjl
  */
+
+/**
+ * 采用预热令牌桶算法
+ */
 public class WarmUpController implements TrafficShapingController {
 
+    /**
+     * qps限制
+     */
     protected double count;
+
+    /**
+     * 冷却因子,预热期令牌生成间隔是正常期间隔的倍数、默认3
+     */
     private int coldFactor;
+
+    /**
+     *
+     */
     protected int warningToken = 0;
+
+    /**
+     * 令牌桶容量
+     */
     private int maxToken;
+
+    /**
+     *
+     */
     protected double slope;
 
     protected AtomicLong storedTokens = new AtomicLong(0);
@@ -86,17 +109,23 @@ public class WarmUpController implements TrafficShapingController {
             throw new IllegalArgumentException("Cold factor should be larger than 1");
         }
 
+        //令count=10、warmUpPeriodInSec=5s、coldFactor=3
+        //count=10
+        //coldFactor=3
+        //warningToken=5*10/(3-1)=25
+        //maxToken=25+2*5*10/(1+3)=50
+        //slope=(3-1)/10/(50-25)=0.008
         this.count = count;
 
         this.coldFactor = coldFactor;
 
         // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
         // warningToken = 100;
-        warningToken = (int)(warmUpPeriodInSec * count) / (coldFactor - 1);
+        warningToken = (int) (warmUpPeriodInSec * count) / (coldFactor - 1);
         // / maxPermits = thresholdPermits + 2 * warmupPeriod /
         // (stableInterval + coldInterval)
         // maxToken = 200
-        maxToken = warningToken + (int)(2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
+        maxToken = warningToken + (int) (2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
 
         // slope
         // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits
@@ -165,10 +194,10 @@ public class WarmUpController implements TrafficShapingController {
         // 添加令牌的判断前提条件:
         // 当令牌的消耗程度远远低于警戒线的时候
         if (oldValue < warningToken) {
-            newValue = (long)(oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
+            newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
         } else if (oldValue > warningToken) {
-            if (passQps < (int)count / coldFactor) {
-                newValue = (long)(oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
+            if (passQps < (int) count / coldFactor) {
+                newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
             }
         }
         return Math.min(newValue, maxToken);

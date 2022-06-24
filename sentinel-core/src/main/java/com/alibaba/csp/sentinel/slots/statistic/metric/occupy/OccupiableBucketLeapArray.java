@@ -15,12 +15,12 @@
  */
 package com.alibaba.csp.sentinel.slots.statistic.metric.occupy;
 
-import java.util.List;
-
 import com.alibaba.csp.sentinel.slots.statistic.MetricEvent;
 import com.alibaba.csp.sentinel.slots.statistic.base.LeapArray;
 import com.alibaba.csp.sentinel.slots.statistic.base.WindowWrap;
 import com.alibaba.csp.sentinel.slots.statistic.data.MetricBucket;
+
+import java.util.List;
 
 /**
  * @author jialiang.linjl
@@ -28,6 +28,9 @@ import com.alibaba.csp.sentinel.slots.statistic.data.MetricBucket;
  */
 public class OccupiableBucketLeapArray extends LeapArray<MetricBucket> {
 
+    /**
+     * 未来窗口、用于优先级请求在新的窗口中优先获取访问权
+     */
     private final FutureBucketLeapArray borrowArray;
 
     public OccupiableBucketLeapArray(int sampleCount, int intervalInMs) {
@@ -55,7 +58,7 @@ public class OccupiableBucketLeapArray extends LeapArray<MetricBucket> {
         MetricBucket borrowBucket = borrowArray.getWindowValue(time);
         if (borrowBucket != null) {
             w.value().reset();
-            w.value().addPass((int)borrowBucket.pass());
+            w.value().addPass((int) borrowBucket.pass());
         } else {
             w.value().reset();
         }

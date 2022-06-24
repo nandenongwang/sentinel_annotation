@@ -169,6 +169,7 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     void checkFlow(ResourceWrapper resource, Context context, DefaultNode node, int count, boolean prioritized)
             throws BlockException {
+        //委托流控规则校验器进行校验
         checker.checkFlow(ruleProvider, resource, context, node, count, prioritized);
     }
 
@@ -177,6 +178,7 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         fireExit(context, resourceWrapper, count, args);
     }
 
+    //从流控规则管理器中获取该资源的流控规则
     private final Function<String, Collection<FlowRule>> ruleProvider = new Function<String, Collection<FlowRule>>() {
         @Override
         public Collection<FlowRule> apply(String resource) {

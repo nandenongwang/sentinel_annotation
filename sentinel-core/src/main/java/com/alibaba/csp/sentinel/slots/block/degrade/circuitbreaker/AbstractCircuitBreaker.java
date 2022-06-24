@@ -15,16 +15,15 @@
  */
 package com.alibaba.csp.sentinel.slots.block.degrade.circuitbreaker;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.context.Context;
-import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRuleManager;
 import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.util.function.BiConsumer;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author Eric Zhao
@@ -32,12 +31,29 @@ import com.alibaba.csp.sentinel.util.function.BiConsumer;
  */
 public abstract class AbstractCircuitBreaker implements CircuitBreaker {
 
+    /**
+     * 熔断规则
+     */
     protected final DegradeRule rule;
+
+    /**
+     * 不可用时间
+     */
     protected final int recoveryTimeoutMs;
 
+    /**
+     * 熔断器状态变更监听器
+     */
     private final EventObserverRegistry observerRegistry;
 
+    /**
+     * 熔断器当前状态、开启时会进行熔断相关操作
+     */
     protected final AtomicReference<State> currentState = new AtomicReference<>(State.CLOSED);
+
+    /**
+     * 下次重试时间、熔断器开启时间 + 不可用时间(recoveryTimeoutMs)、这个时间段内不会进行尝试、均进行熔断
+     */
     protected volatile long nextRetryTimestamp;
 
     public AbstractCircuitBreaker(DegradeRule rule) {
@@ -64,6 +80,12 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         return currentState.get();
     }
 
+    /**
+     * 熔断器关闭时直接放过
+     * 熔断器打开时会检测是否到重试时间
+     * 到重试时间后将状态变为半开、进行尝试
+     * 同时后请求注册结束勾子、若请求有异常则将半开重新设为开启状态
+     */
     @Override
     public boolean tryPass(Context context) {
         // Template implementation.
@@ -122,7 +144,7 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         }
         return false;
     }
-    
+
     private void notifyObservers(CircuitBreaker.State prevState, CircuitBreaker.State newState, Double snapshotValue) {
         for (CircuitBreakerStateChangeObserver observer : observerRegistry.getStateChangeObservers()) {
             observer.onStateChange(prevState, newState, rule, snapshotValue);

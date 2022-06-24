@@ -3,7 +3,7 @@
 # 维护不同入口下访问资源的统计node、并作为参数node向下传播
 com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot
 
-# 维护当前访问资源与全局的所有资源的聚合统计cluster node
+# 维护当前访问资源与全局的所有资源的所有入口的聚合统计cluster node
 com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot
 
 # 记录限流日志
