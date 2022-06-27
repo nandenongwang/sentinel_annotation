@@ -73,22 +73,22 @@ public class WarmUpController implements TrafficShapingController {
     protected double count;
 
     /**
-     * 冷却因子,预热期令牌生成间隔是正常期间隔的倍数、默认3
+     * 冷却因子,表示变化快慢,预热期令牌生成间隔/正常期间隔、即稳定期qps为低负载期qps(最冷及以下)的多少倍、默认3
      */
     private int coldFactor;
 
     /**
-     *
+     * 剩余令牌进入预热区间阈值、三角区近似面积【coldFactor越大-该值越小-下凹(先慢后快)，coldFactor越小-该值越大-上凸(先快后慢)】
      */
     protected int warningToken = 0;
 
     /**
-     * 令牌桶容量
+     * 预热区间令牌桶容量
      */
     private int maxToken;
 
     /**
-     *
+     * 斜率、用于计算剩余token在【报警线,最大容量】线性区间内对应的生成速度(以生成时间间隔衡量)
      */
     protected double slope;
 
@@ -109,29 +109,33 @@ public class WarmUpController implements TrafficShapingController {
             throw new IllegalArgumentException("Cold factor should be larger than 1");
         }
 
-        //令count=10、warmUpPeriodInSec=5s、coldFactor=3
-        //count=10
+        //令count=20、warmUpPeriodInSec=10s、coldFactor=3
+        //count=20
         //coldFactor=3
-        //warningToken=5*10/(3-1)=25
-        //maxToken=25+2*5*10/(1+3)=50
-        //slope=(3-1)/10/(50-25)=0.008
+        //warningToken=20*10/(3-1)=100
+        //maxToken=100+2*10*20/(1+3)=200
+        //slope=(3-1)/20/(200-100)=0.001
         this.count = count;
 
         this.coldFactor = coldFactor;
 
-        // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
+        // thresholdPermits = 0.5 * warmupPeriod / stableInterval. 三角面积、0.5 * warmupPeriod * (1/stableInterval=count)=warmUpPeriodInSec * count/2(coldFactor默认3 -1 = 2 ，即默认线性变化)
         // warningToken = 100;
+        //0.5*warmupPeriod*(cold_i+stable_i)
+        //warmupPeriod/ (cold_i-stable_i)
         warningToken = (int) (warmUpPeriodInSec * count) / (coldFactor - 1);
-        // / maxPermits = thresholdPermits + 2 * warmupPeriod /
-        // (stableInterval + coldInterval)
+
+        //maxPermits = thresholdPermits + 2 * warmupPeriod / (stableInterval + coldInterval)
         // maxToken = 200
+        // thresholdPermits + (2 * warmUpPeriodInSec * count / (coldFactor + 1.0))
+        //=thresholdPermits + 2 *warmUpPeriodInSec * count /((cold_i+stable_i)/(stable_i))
+        //=thresholdPermits + 2 *warmUpPeriodInSec/((cold_i+stable_i)/(stable_i*count))
+        //=thresholdPermits + 2 * warmupPeriod / (stableInterval + coldInterval)【warmupPeriod/((stableInterval + coldInterval)/2)=预热时间/时间间隔均值】
         maxToken = warningToken + (int) (2 * warmUpPeriodInSec * count / (coldFactor + 1.0));
 
-        // slope
-        // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits
-        // - thresholdPermits);
+        //(coldFactor - 1.0) / count=((coldIntervalMicros-stableIntervalMicros)/(stableIntervalMicros*count=1))=(coldIntervalMicros - stableIntervalMicros)
+        //slope=(coldIntervalMicros - stableIntervalMicros) / (maxPermits- thresholdPermits)
         slope = (coldFactor - 1.0) / count / (maxToken - warningToken);
-
     }
 
     @Override
@@ -151,10 +155,11 @@ public class WarmUpController implements TrafficShapingController {
         long restToken = storedTokens.get();
         if (restToken >= warningToken) {
             //消耗速度过小、表明系统处于冷启动期
-            //计算实际剩余token与最小正常消耗速度时剩余token的差值、剩余越多启动期流控限制应越小
+            //计算实际剩余token与最小正常消耗速度时剩余token的差值、剩余越多启动期流控限制越小
             long aboveToken = restToken - warningToken;
             // 消耗的速度要比warning快，但是要比慢
-            // current interval = restToken*slope+1/count
+            // current interval = restToken(？)*slope + 1/count(稳定区间token生成时间间隔)
+            // 当前间隔应等于剩余token*斜率=警戒线上token(剩余token-警戒线)*斜率=线上token*斜率+警戒线生成间隔(稳定期间隔，1.0/count)
             double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
             if (passQps + acquireCount <= warningQps) {
                 return true;
@@ -170,17 +175,18 @@ public class WarmUpController implements TrafficShapingController {
     }
 
     protected void syncToken(long passQps) {
+
+        //region 每个滑动窗口期最多仅填充一次token
         long currentTime = TimeUtil.currentTimeMillis();
-        //滑动窗口开始时间
         currentTime = currentTime - currentTime % 1000;
         long oldLastFillTime = lastFilledTime.get();
         if (currentTime <= oldLastFillTime) {
             return;
         }
+        //endregion
 
+        //region 计算token剩余并CAS更新
         long oldValue = storedTokens.get();
-
-        //计算
         long newValue = coolDownTokens(currentTime, passQps);
 
         //更新剩余token与填充时间
@@ -191,11 +197,13 @@ public class WarmUpController implements TrafficShapingController {
             }
             lastFilledTime.set(currentTime);
         }
-
+        //endregion
     }
 
     /**
      * 计算token剩余数
+     * 系统处于低负载与高负载(正常负载)情况下均应累积token(不超过最大token容量)
+     * 系统处于冷启动负载区token数不变
      */
     private long coolDownTokens(long currentTime, long passQps) {
         long oldValue = storedTokens.get();
@@ -204,13 +212,13 @@ public class WarmUpController implements TrafficShapingController {
         // 添加令牌的判断前提条件:
         // 当令牌的消耗程度远远低于警戒线的时候
         if (oldValue < warningToken) {
-            //剩余token小于报警token、已经是正常消耗速度
+            //剩余token小于报警token、已经处于正常消耗速度区间
             //计算正常总剩余 = 上次剩余数 + 过去时间(当前时间-上次更新剩余token时间) * qps阈值(每秒应发放的token)
             newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
         } else if (oldValue > warningToken) {
-            //剩余token大于报警token、消耗速度小于冷启动最大速度
+            //剩余token大于报警token、消耗速度处于冷启动区间
 
-            //当前消耗速度小于冷启动最小速度
+            //之前消耗速度小于冷启动最小速度、系统在低负载区间运行
             if (passQps < (int) count / coldFactor) {
                 newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
             }
@@ -219,5 +227,4 @@ public class WarmUpController implements TrafficShapingController {
         }
         return Math.min(newValue, maxToken);
     }
-
 }
